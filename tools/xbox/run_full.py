@@ -194,13 +194,13 @@ def _logic_hash():
 
 def cache_key(r, relaxed):
     """Everything that can change a result: the result logic in this script, the driver and spirv-val builds, the shader code, its
-    bindings, the stage, the f16 opt-in and any XBOX_* switch in the environment. Same key = same inputs, so the stored result is reused.
+    bindings, stage, manifest wave size, f16 opt-in and XBOX_* switches in the environment. Same key = same inputs.
     The time limit is not in the key: a cached TIMEOUT is re-run when the limit is now higher (cache_usable)."""
     import hashlib
     idx, stage = r["idx"], r["stage"]
     h = hashlib.sha256()
     drv = DRIVER_CS if stage == "CS" else DRIVER_GFX
-    for part in (_logic_hash(), _file_hash(drv), _file_hash(VAL), stage, str(relaxed),
+    for part in (_logic_hash(), _file_hash(drv), _file_hash(VAL), stage, r.get("wave") or "", str(relaxed),
                  repr(sorted((k, v) for k, v in os.environ.items() if k.startswith("XBOX_") and k not in PATH_VARS))):
         h.update(part.encode() + b"\0")
     h.update(open(BINS + f"{idx}.bin", "rb").read())
