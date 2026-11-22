@@ -216,6 +216,11 @@ int main(int argc, char** argv) {
         std::ofstream o(argv[3], std::ios::binary);
         const auto words = result.spirv.Words();
         o.write(reinterpret_cast<const char*>(words.data()), words.size() * 4);
+        o.close();
+        if (!o) {
+            std::printf("IOERROR cannot write SPIR-V output\n");
+            return 1;
+        }
         if (std::getenv("XBOX_DUMP_ABI")) {
             std::printf("abi: bdaVer=%u memOffDword=%u shaderDataDwords=%u imgMetaDword=%u runtimeImages=%u push=%zu specConsts=%zu userWords=%zu wg=%u\n", result.bdaAbiVersion, result.memoryOffsetDword, result.shaderDataDwords, result.imageMetadataDword, result.runtimeImageCount, result.pushConstants.size(), result.specialization.size(), result.shaderDataUserWords.size(), result.workgroupMemoryDwords);
             for (const auto& b : result.bindings) std::printf("  binding set=%u b=%u kind=%d role=%d count=%u guest=%zu ro=%d\n", b.descriptorSet, b.binding, static_cast<int>(b.kind), static_cast<int>(b.role), b.count, b.guestDescriptor.size(), b.readOnly ? 1 : 0);
