@@ -1,5 +1,6 @@
 #include "Optimization/BindingAllocator.hpp"
 #include "Optimization/ResourceMaterializer.hpp"
+#include "PipelineSpecialization.hpp"
 #include <algorithm>
 #include <array>
 #include <stdexcept>
@@ -154,6 +155,7 @@ BindingAllocationResult BindingAllocator::Allocate(IrProgram& program, const Bin
         }
     }
 
+    static_assert(2u * RuntimeAbi::SamplerHeapCapacity <= PipelineSpecialization::DescriptorIndexStride);
     std::vector<std::uint32_t> samplers;
     for (std::uint32_t i = 0; i < info.samplers.size(); i++) {
         if (info.samplers[i].table == NoTable) {
@@ -161,7 +163,7 @@ BindingAllocationResult BindingAllocator::Allocate(IrProgram& program, const Bin
         }
     }
     if (!samplers.empty()) {
-        if (samplers.size() > RuntimeAbi::SamplerHeapCapacity) fail("shader sampler pairs exceed runtime heap capacity: " + std::to_string(samplers.size() / 2u) + " samplers");
+        if (registrationModules && samplers.size() > RuntimeAbi::SamplerHeapCapacity) fail("shader sampler pairs exceed runtime heap capacity: " + std::to_string(samplers.size() / 2u) + " samplers");
         addBinding(next, DescriptorBindingKind::Samplers, std::move(samplers));
     }
     if (usesGds(program)) {

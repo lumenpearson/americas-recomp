@@ -216,12 +216,12 @@ void CheckAbi() {
 
 void CheckHeaps() {
     using namespace ShaderRecompiler;
-    const auto allocate = [](const ImageResource& image, std::uint32_t count, std::uint32_t samplers = 0u) {
+    const auto allocate = [](const ImageResource& image, std::uint32_t count, std::uint32_t samplers = 0u, bool registration = false) {
         IrProgram program;
         program.Metadata().shaderInfoComplete = true;
         program.Resources().info.images.assign(count, image);
         program.Resources().info.samplers.resize(samplers);
-        return BindingAllocator{}.Allocate(program, {0u, 0u, 0u, 128u});
+        return BindingAllocator{}.Allocate(program, {0u, 0u, 0u, 128u}, registration);
     };
     ImageResource image;
     image.resourceClass = ImageResourceClass::Sampled;
@@ -253,7 +253,9 @@ void CheckHeaps() {
     const auto filled = allocate(image, capacity);
     Require(BindingAllocator{}.FindBinding(filled.layout, DescriptorBindingForImage(image)).resources.size() == RuntimeAbi::StorageHeapCapacity, "a full storage heap was not allocated");
     Reject([&] { allocate(image, capacity + 1u); }, "heap capacity exceeded");
-    Reject([&] { allocate(image, 0u, RuntimeAbi::SamplerHeapCapacity / 2u + 1u); }, "sampler pairs");
+    const auto wideSamplerLayout = allocate(image, 0u, RuntimeAbi::SamplerHeapCapacity);
+    Require(BindingAllocator{}.FindBinding(wideSamplerLayout.layout, DescriptorBindingKind::Samplers).resources.size() == 2u * RuntimeAbi::SamplerHeapCapacity, "specialized layout must reserve both variants before compaction");
+    Reject([&] { allocate(image, 0u, RuntimeAbi::SamplerHeapCapacity / 2u + 1u, true); }, "sampler pairs");
     const std::array dimensions{RdnaImageDimension::Dim1D, RdnaImageDimension::Dim1DArray, RdnaImageDimension::Dim2D, RdnaImageDimension::Dim2DArray, RdnaImageDimension::Dim3D, RdnaImageDimension::Dim2DMsaa, RdnaImageDimension::Dim2DMsaaArray};
     std::set<std::uint32_t> classes;
     for (std::uint32_t group = 0u; group < 8u; ++group) {
