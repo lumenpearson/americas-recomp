@@ -162,7 +162,7 @@ def carve_one(name, offset, archive):
     blob = fssm_from(nested)
     if blob is None:
         return {"name": name, "kind": kind, "error": "no-xbch"}
-    if blob[:4] != b"FSSM" or len(blob) < 0x1D0:   # the header region the decoders read (fssm_header.py), see issue #128
+    if blob[:4] != b"FSSM" or len(blob) < 0x1D0:
         return {"name": name, "kind": kind, "error": "short-fssm"}
     codeOffset, codeSize = struct.unpack_from("<QQ", blob, 0xC0)
     code = blob[codeOffset : codeOffset + codeSize]

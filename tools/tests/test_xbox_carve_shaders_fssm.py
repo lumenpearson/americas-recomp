@@ -110,7 +110,6 @@ class CarveFssmTest(unittest.TestCase):
         self.assertEqual(self.carve(archive)["error"], "short-fssm")
 
     def test_header_between_the_code_range_and_the_decoder_region_is_an_entry_error(self):
-        # issue #128: 0xD0..0x1CF holds the code range but not the wave word (0xD4) or the input tables (to 0x1D0)
         for size in (0xD0, 0xD4, 0x1CF):
             blob = bytearray(size)
             blob[:4] = b"FSSM"
