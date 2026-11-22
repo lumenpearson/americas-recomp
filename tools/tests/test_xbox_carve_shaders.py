@@ -233,7 +233,7 @@ class MainTest(unittest.TestCase):
         outputs = (self.bins / "1.bin", vins / "1.vin", self.out / "manifest.csv")
         for path in outputs:
             path.write_bytes(b"previous run")
-        generated = {"error": None, "name": "first", "kind": 1, "code": b"new", "vin": "vin\n", "prologue": False}
+        generated = {"error": None, "name": "first", "kind": 1, "code": b"new", "vin": "vin\n", "prologue": False, "wave": 64}
         with (
             mock.patch.object(carve_shaders, "find_entries", return_value=[("first", 0), ("second", 0)]),
             mock.patch.object(carve_shaders, "carve_one", side_effect=[generated, OSError("read failed")]),
@@ -267,7 +267,7 @@ class MainTest(unittest.TestCase):
         self.assertFalse((self.bins / "2.bin").exists())
         self.assertEqual((vins / "1.vin").read_text(), "vin 4 2 2\n")
         manifest = (self.out / "manifest.csv").read_text().splitlines()
-        self.assertEqual(manifest, [",".join(carve_shaders.FIELDS), "1,VS_Test,1,VS,4,0,"])
+        self.assertEqual(manifest, [",".join(carve_shaders.FIELDS), "1,VS_Test,1,VS,4,0,64,"])
 
     def test_force_removes_only_numbered_blobs(self):
         self.archive.write_bytes(b"\x00")

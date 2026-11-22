@@ -11,7 +11,8 @@ Same drivers and defaults as run_corpus_bind.py (compute, driver_heap.exe, fake-
 run_graphics_final.py (PS/VS/MS, driver_gfx2.exe (XBOX_DRIVER_GFX overrides), PS both strict and with XBOX_ALLOW_UNMEASURED_F16_INTERP, barycentric extension
 retry; PS interpolants read only at P0 are passed as flat, as the FSSM input table declares them; a VS with vin_full/<idx>.vin gets its fetch-subroutine VGPR layout, see carve_shaders.py). Shaders listed in the --skip files (earlier results, by idx) are not run again. Results are written every 500 shaders, so a
 killed run can be resumed by passing its own output as --skip. Stage '?' in the manifest is mesh (type 6/7), GS has no driver mode and
-is recorded as SKIP. The wave size passed to the driver is 64 for a program that changes exec only with 64-bit SALU ops, else 32;
+is recorded as SKIP. The wave size passed to the driver is the manifest's wave column (carve_shaders.py: FSSM header word 0xd4, bit 5
+set = wave32) when there is one, else 64 for a program that changes exec only with 64-bit SALU ops, else 32;
 XBOX_WAVE=32 or 64 forces one size for every shader."""
 import subprocess, csv, sys, collections, concurrent.futures as cf, json, os, time
 sys.path.insert(0, os.environ.get("XBOX_RDNA2_DIR", r"E:/Programming/rpf9shaders/out_disasm"))
@@ -74,10 +75,23 @@ def esgs_item(idx):
     return sizes.pop() // 4 if len(sizes) == 1 and min(sizes) % 4 == 0 else 0
 
 
+_MANIFEST_WAVE = None
+
+
+def manifest_wave(idx):
+    global _MANIFEST_WAVE
+    if _MANIFEST_WAVE is None:
+        _MANIFEST_WAVE = {r["idx"]: r["wave"] for r in csv.DictReader(open(MANIFEST)) if r.get("wave")}
+    return _MANIFEST_WAVE.get(idx)
+
+
 def wave(idx):
     forced = os.environ.get("XBOX_WAVE", "auto")
     if forced != "auto":
         return forced
+    header = manifest_wave(idx)
+    if header:
+        return header
     d = open(BINS + f"{idx}.bin", "rb").read()
     ins, _ = rdna2.sweep(d, 0, len(d))
     narrow = wide = False
@@ -174,7 +188,7 @@ def _logic_hash():
     global _LOGIC
     if _LOGIC is None:
         import hashlib, inspect
-        _LOGIC = hashlib.sha256("".join(inspect.getsource(f) for f in (interpolants, attrs, esgs_item, wave, classify, compute, graphics, _one)).encode()).hexdigest()[:16]
+        _LOGIC = hashlib.sha256("".join(inspect.getsource(f) for f in (interpolants, attrs, esgs_item, manifest_wave, wave, classify, compute, graphics, _one)).encode()).hexdigest()[:16]
     return _LOGIC
 
 

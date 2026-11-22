@@ -60,7 +60,9 @@ READ_LIMIT = 1 << 22
 NAME = re.compile(rb"[A-Za-z0-9_.:]+$")
 MANAGED = re.compile(r"[0-9]+\.bin")
 MANAGED_VIN = re.compile(r"[0-9]+\.vin")
-FIELDS = ["idx", "name", "kind", "stage", "bytes", "prologue", "error"]
+FIELDS = ["idx", "name", "kind", "stage", "bytes", "prologue", "wave", "error"]
+WAVE_WORD = 0xD4
+WAVE32_BIT = 5
 
 
 def find_entries(archive):
@@ -160,19 +162,21 @@ def carve_one(name, offset, archive):
     blob = fssm_from(nested)
     if blob is None:
         return {"name": name, "kind": kind, "error": "no-xbch"}
-    if blob[:4] != b"FSSM" or len(blob) < 0xC0 + 16:
+    if blob[:4] != b"FSSM" or len(blob) < 0x1D0:   # the header region the decoders read (fssm_header.py), see issue #128
         return {"name": name, "kind": kind, "error": "short-fssm"}
     codeOffset, codeSize = struct.unpack_from("<QQ", blob, 0xC0)
     code = blob[codeOffset : codeOffset + codeSize]
     if len(code) != codeSize:
         return {"name": name, "kind": kind, "error": "short-code"}
     code, prologue = strip_prologue(code)
+    wave32 = struct.unpack_from("<I", blob, WAVE_WORD)[0] >> WAVE32_BIT & 1
     return {
         "name": name,
         "kind": kind,
         "code": trim_at_endpgm(code),
         "prologue": prologue,
         "vin": vin_text(blob) if STAGES.get(kind) == "VS" else "",
+        "wave": 32 if wave32 else 64,
         "error": None,
     }
 
@@ -194,6 +198,7 @@ def write_carve(archive, entries, bins, vins, manifest):
                     "stage": "",
                     "bytes": "",
                     "prologue": "",
+                    "wave": "",
                     "error": result["error"],
                 }
             )
@@ -212,6 +217,7 @@ def write_carve(archive, entries, bins, vins, manifest):
                 "stage": STAGES.get(result["kind"], "?"),
                 "bytes": len(result["code"]),
                 "prologue": int(result["prologue"]),
+                "wave": result["wave"],
                 "error": "",
             }
         )
@@ -288,6 +294,7 @@ def main():
     print("carved:", len(carved), "errors:", dict(errors))
     print("stages:", dict(collections.Counter(row["stage"] for row in carved)))
     print("prologue:", dict(collections.Counter(row["prologue"] for row in carved)))
+    print("wave:", dict(collections.Counter(row["wave"] for row in carved)))
     if sizes:
         print(
             "bytes: min %d median %d max %d"
