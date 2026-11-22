@@ -109,6 +109,16 @@ class CarveFssmTest(unittest.TestCase):
         archive = build_entry("VS_Test_0004", build_dxbc([(b"DXIL", dxil)]))
         self.assertEqual(self.carve(archive)["error"], "short-fssm")
 
+    def test_header_between_the_code_range_and_the_decoder_region_is_an_entry_error(self):
+        # issue #128: 0xD0..0x1CF holds the code range but not the wave word (0xD4) or the input tables (to 0x1D0)
+        for size in (0xD0, 0xD4, 0x1CF):
+            blob = bytearray(size)
+            blob[:4] = b"FSSM"
+            struct.pack_into("<QQ", blob, 0xC0, 0x1D0, 0)
+            dxil = build_dxil(1, build_xbch(bytes(blob)))
+            archive = build_entry("VS_Test_0004", build_dxbc([(b"DXIL", dxil)]))
+            self.assertEqual(self.carve(archive)["error"], "short-fssm", size)
+
     def test_code_range_past_end_is_an_entry_error(self):
         code = struct.pack("<2I", 0x66666666, END_PGM)
         blob = build_fssm(code, size=len(code) + 10)
